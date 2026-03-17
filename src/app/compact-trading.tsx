@@ -225,11 +225,18 @@ export default function CompactTradingSimulator() {
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    if (symbol && type && entry) {
+    if (symbol && type && entry && tradingPairs.length > 0) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      // Coin'i seç
-      setSelectedPair(symbol.toUpperCase())
+      // Coin'in listede olup olmadığını kontrol et
+      const coinExists = tradingPairs.find(pair => pair.symbol.toUpperCase() === symbol.toUpperCase())
+      if (coinExists) {
+        // Coin'i seç
+        setSelectedPair(symbol.toUpperCase())
+        console.log('✅ Coin seçildi:', symbol.toUpperCase())
+      } else {
+        console.log('⚠️ Coin listede bulunamadı:', symbol)
+      }
       
       // İşlem türünü seç
       setOrderType(type === 'short' ? 'sell' : 'buy')
@@ -254,7 +261,7 @@ export default function CompactTradingSimulator() {
       // URL'yi temizle (parametreleri kaldır)
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [])
+  }, [tradingPairs]) // tradingPairs dependency eklendi
 
   // localStorage'dan trade geçmişini yükle
   useEffect(() => {
