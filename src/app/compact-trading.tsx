@@ -226,51 +226,47 @@ export default function CompactTradingSimulator() {
   }
   // URL parametrelerinden sinyal bilgilerini oku
   useEffect(() => {
-    console.log('🔍 URL kontrol ediliyor...')
+    console.log('🔍 URL kontrol ediliyor... [v2.0]')
     const urlParams = new URLSearchParams(window.location.search)
     const symbol = urlParams.get('symbol')
-    const type = urlParams.get('type') // 'long' veya 'short'
+    const type = urlParams.get('type')
     const entry = urlParams.get('entry')
     const tp = urlParams.get('tp')
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    console.log('📊 URL Parametreleri:', { symbol, type, entry, tp, sl, leverage })
+    console.log('📊 URL Parametreleri [v2.0]:', { symbol, type, entry, tp, sl, leverage })
 
-    // URL parametreleri varsa popup göster
     if (symbol && type && entry) {
-      console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
+      console.log('🎯 Sinyal algılandı [v2.0]!')
       
-      try {
-        const popupData = {
-          show: true,
-          symbol: symbol.toUpperCase(),
-          type: type,
-          entry: entry,
-          tp: tp || '',
-          sl: sl || '',
-          leverage: leverage || '10'
-        }
-        
-        console.log('📦 Popup data hazırlandı:', popupData)
-        
-        // State'i set et
-        setSignalPopup(popupData)
-        
-        console.log('✅ setSignalPopup çağrıldı!')
-        
-        // URL'yi temizle (parametreleri kaldır) - SONRA yap
-        setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname)
-          console.log('🧹 URL temizlendi')
-        }, 500)
-      } catch (error) {
-        console.error('❌ Popup ayarlama hatası:', error)
+      // ÖNCE ALERT İLE TEST EDELIM
+      alert(`🚨 YENİ SİNYAL!\n\nCoin: ${symbol}\nTür: ${type}\nGiriş: ${entry}\nTP: ${tp}\nSL: ${sl}\nKaldıraç: ${leverage}x\n\nDevam etmek için OK'a basın.`)
+      
+      // Sonra state'i set et
+      const popupData = {
+        show: true,
+        symbol: symbol.toUpperCase(),
+        type: type,
+        entry: entry,
+        tp: tp || '',
+        sl: sl || '',
+        leverage: leverage || '10'
       }
+      
+      console.log('📦 State ayarlanıyor [v2.0]:', popupData)
+      setSignalPopup(popupData)
+      console.log('✅ State ayarlandı [v2.0]!')
+      
+      // URL'yi temizle
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname)
+        console.log('🧹 URL temizlendi [v2.0]')
+      }, 1000)
     } else {
-      console.log('❌ URL parametreleri eksik veya yok')
+      console.log('❌ Parametreler eksik [v2.0]')
     }
-  }, []) // Dependency array boş - sadece mount'ta çalışır
+  }, [])
 
   // Sinyal popup'ından sinyali uygula
   const applySignal = () => {
