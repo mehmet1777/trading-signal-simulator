@@ -93,6 +93,15 @@ export default function CompactTradingSimulator() {
     show: boolean
     trade: TradeData | null
   }>({ show: false, trade: null })
+  const [signalPopup, setSignalPopup] = useState<{
+    show: boolean
+    symbol: string
+    type: string
+    entry: string
+    tp: string
+    sl: string
+    leverage: string
+  } | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const priceUpdateRef = useRef<HTMLDivElement>(null)
@@ -225,42 +234,59 @@ export default function CompactTradingSimulator() {
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    // URL parametreleri varsa işle (sadece bir kez)
+    // URL parametreleri varsa popup göster
     if (symbol && type && entry) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      // Coin'i hemen seç (coin listesi yüklenmeden)
-      setSelectedPair(symbol.toUpperCase())
-      
-      // Coin search input'unu da güncelle
-      const coinName = symbol.toUpperCase().replace('USDT', '')
-      setCoinSearch(coinName)
-      console.log('✅ Coin seçildi:', symbol.toUpperCase())
-      
-      // İşlem türünü seç
-      setOrderType(type === 'short' ? 'sell' : 'buy')
-      
-      // Limit moduna geç ve giriş fiyatını ayarla
-      setOrderMode('limit')
-      setLimitPrice(entry)
-      
-      // Kaldıracı ayarla (varsa)
-      if (leverage) {
-        setLeverage(parseInt(leverage))
-      }
-      
-      // Eğer TP/SL bilgileri varsa, pozisyon açıldıktan sonra ayarlanacak
-      // Bu bilgileri geçici olarak sakla
-      if (tp || sl) {
-        // Sinyal TP/SL bilgilerini sessionStorage'da sakla
-        sessionStorage.setItem('signalTP', tp || '')
-        sessionStorage.setItem('signalSL', sl || '')
-      }
+      setSignalPopup({
+        show: true,
+        symbol: symbol.toUpperCase(),
+        type: type,
+        entry: entry,
+        tp: tp || '',
+        sl: sl || '',
+        leverage: leverage || '10'
+      })
       
       // URL'yi temizle (parametreleri kaldır)
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, []) // Dependency array boş - sadece mount'ta çalışır
+
+  // Sinyal popup'ından sinyali uygula
+  const applySignal = () => {
+    if (!signalPopup) return
+    
+    console.log('🚀 Sinyal uygulanıyor:', signalPopup)
+    
+    // Coin'i seç
+    setSelectedPair(signalPopup.symbol)
+    
+    // Coin search input'unu güncelle
+    const coinName = signalPopup.symbol.replace('USDT', '')
+    setCoinSearch(coinName)
+    
+    // İşlem türünü seç
+    setOrderType(signalPopup.type === 'short' ? 'sell' : 'buy')
+    
+    // Limit moduna geç ve giriş fiyatını ayarla
+    setOrderMode('limit')
+    setLimitPrice(signalPopup.entry)
+    
+    // Kaldıracı ayarla
+    setLeverage(parseInt(signalPopup.leverage))
+    
+    // TP/SL bilgilerini sakla
+    if (signalPopup.tp || signalPopup.sl) {
+      sessionStorage.setItem('signalTP', signalPopup.tp)
+      sessionStorage.setItem('signalSL', signalPopup.sl)
+    }
+    
+    // Popup'ı kapat
+    setSignalPopup(null)
+    
+    console.log('✅ Sinyal başarıyla uygulandı!')
+  }
 
   // localStorage'dan trade geçmişini yükle
   useEffect(() => {
@@ -2576,6 +2602,75 @@ export default function CompactTradingSimulator() {
                   </div>
                 )
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sinyal Popup */}
+      {signalPopup && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1E2329] rounded-lg p-6 max-w-md w-full border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                🚨 Yeni Sinyal Geldi!
+              </h2>
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="bg-[#2B3139] rounded p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">Coin:</span>
+                  <span className="text-white font-bold text-lg">{signalPopup.symbol}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">İşlem Türü:</span>
+                  <span className={`font-bold text-lg ${signalPopup.type === 'short' ? 'text-red-400' : 'text-green-400'}`}>
+                    {signalPopup.type === 'short' ? '📉 SHORT' : '📈 LONG'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">Giriş Fiyatı:</span>
+                  <span className="text-white font-bold">${signalPopup.entry}</span>
+                </div>
+                {signalPopup.tp && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-400 text-sm">Take Profit:</span>
+                    <span className="text-green-400 font-bold">${signalPopup.tp}</span>
+                  </div>
+                )}
+                {signalPopup.sl && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-400 text-sm">Stop Loss:</span>
+                    <span className="text-red-400 font-bold">${signalPopup.sl}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Kaldıraç:</span>
+                  <span className="text-yellow-400 font-bold">{signalPopup.leverage}x</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded font-semibold transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={applySignal}
+                className="flex-1 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black py-3 rounded font-semibold transition-colors"
+              >
+                🚀 Sinyali Uygula
+              </button>
             </div>
           </div>
         </div>
