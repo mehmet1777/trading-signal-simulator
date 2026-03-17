@@ -240,10 +240,7 @@ export default function CompactTradingSimulator() {
     if (symbol && type && entry) {
       console.log('🎯 Sinyal algılandı [v2.0]!')
       
-      // ÖNCE ALERT İLE TEST EDELIM
-      alert(`🚨 YENİ SİNYAL!\n\nCoin: ${symbol}\nTür: ${type}\nGiriş: ${entry}\nTP: ${tp}\nSL: ${sl}\nKaldıraç: ${leverage}x\n\nDevam etmek için OK'a basın.`)
-      
-      // Sonra state'i set et
+      // Popup state'ini set et
       const popupData = {
         show: true,
         symbol: symbol.toUpperCase(),
@@ -2691,6 +2688,88 @@ export default function CompactTradingSimulator() {
                   </div>
                 )
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sinyal Popup - Telegram'dan Gelen Sinyaller */}
+      {signalPopup && signalPopup.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1E2329] rounded-lg max-w-md w-full p-6 shadow-2xl border border-yellow-500/30">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🚨</span>
+                <h2 className="text-xl font-bold text-white">Yeni Sinyal!</h2>
+              </div>
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Sinyal Bilgileri */}
+            <div className="space-y-4 mb-6">
+              {/* Coin */}
+              <div className="bg-[#2B3139] rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-1">Coin</div>
+                <div className="text-2xl font-bold text-white">{signalPopup.symbol}</div>
+              </div>
+
+              {/* Tip ve Kaldıraç */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[#2B3139] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">İşlem Tipi</div>
+                  <div className={`text-lg font-bold ${signalPopup.type === 'long' ? 'text-green-400' : 'text-red-400'}`}>
+                    {signalPopup.type === 'long' ? '📈 LONG' : '📉 SHORT'}
+                  </div>
+                </div>
+                <div className="bg-[#2B3139] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Kaldıraç</div>
+                  <div className="text-lg font-bold text-yellow-400">{signalPopup.leverage}x</div>
+                </div>
+              </div>
+
+              {/* Fiyatlar */}
+              <div className="space-y-2">
+                <div className="bg-[#2B3139] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Giriş Fiyatı</div>
+                  <div className="text-lg font-bold text-white">{signalPopup.entry} USDT</div>
+                </div>
+                
+                {signalPopup.tp && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                    <div className="text-xs text-green-400 mb-1">🎯 Take Profit</div>
+                    <div className="text-lg font-bold text-green-400">{signalPopup.tp} USDT</div>
+                  </div>
+                )}
+                
+                {signalPopup.sl && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                    <div className="text-xs text-red-400 mb-1">🛑 Stop Loss</div>
+                    <div className="text-lg font-bold text-red-400">{signalPopup.sl} USDT</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Butonlar */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={applySignal}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black py-3 rounded-lg font-bold transition-colors"
+              >
+                Sinyali Uygula
+              </button>
             </div>
           </div>
         </div>
