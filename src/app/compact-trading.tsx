@@ -256,7 +256,7 @@ export default function CompactTradingSimulator() {
     }
   }, [])
 
-  // Binance'dan trading çiftlerini çek VE URL parametrelerini uygula
+  // Binance'dan trading çiftlerini çek
   useEffect(() => {
     const fetchTradingPairs = async () => {
       try {
@@ -278,76 +278,10 @@ export default function CompactTradingSimulator() {
         setTradingPairs(pairs)
         
         if (pairs.length > 0) {
-          // URL parametrelerini kontrol et
-          const urlParams = new URLSearchParams(window.location.search)
-          const urlSymbol = urlParams.get('symbol')
-          const type = urlParams.get('type')
-          const entry = urlParams.get('entry')
-          const tp = urlParams.get('tp')
-          const sl = urlParams.get('sl')
-          const leverage = urlParams.get('leverage')
-          
-          console.log('📊 URL Parametreleri:', { urlSymbol, type, entry, tp, sl, leverage })
-          
-          if (urlSymbol && type && entry) {
-            console.log('🎯 Sinyal algılandı - OTOMATIK UYGULANACAK!')
-            
-            // Coin'i bul ve seç
-            const upperSymbol = urlSymbol.toUpperCase()
-            const urlPair = pairs.find((p: TradingPair) => p.symbol === upperSymbol)
-            
-            if (urlPair) {
-              setSelectedPair(urlPair.symbol)
-              setCurrentPrice(parseFloat(urlPair.price))
-              console.log('✅ Coin seçildi:', urlPair.symbol)
-              
-              // Coin search input'unu güncelle
-              const coinName = upperSymbol.replace('USDT', '')
-              setCoinSearch(coinName)
-              console.log('✅ Search güncellendi:', coinName)
-              
-              // İşlem türünü seç
-              const orderTypeValue = type.toLowerCase() === 'short' ? 'sell' : 'buy'
-              setOrderType(orderTypeValue)
-              console.log('✅ Order type:', orderTypeValue)
-              
-              // Limit moduna geç ve giriş fiyatını ayarla
-              setOrderMode('limit')
-              setLimitPrice(entry)
-              console.log('✅ Limit mode, entry:', entry)
-              
-              // Kaldıracı ayarla
-              const leverageValue = parseInt(leverage || '10')
-              setLeverage(leverageValue)
-              console.log('✅ Leverage:', leverageValue)
-              
-              // TP/SL bilgilerini sakla
-              if (tp || sl) {
-                if (tp) sessionStorage.setItem('signalTP', tp)
-                if (sl) sessionStorage.setItem('signalSL', sl)
-                console.log('✅ TP/SL kaydedildi:', { tp, sl })
-              }
-              
-              // URL'yi temizle
-              setTimeout(() => {
-                window.history.replaceState({}, document.title, window.location.pathname)
-                console.log('🧹 URL temizlendi')
-              }, 2000)
-              
-              console.log('✅ Sinyal başarıyla uygulandı!')
-            } else {
-              console.log('❌ Coin bulunamadı:', upperSymbol)
-              // Coin bulunamazsa BTC seç
-              const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
-              setSelectedPair(btcPair.symbol)
-              setCurrentPrice(parseFloat(btcPair.price))
-            }
-          } else {
-            // URL parametresi yoksa varsayılan BTC seç
-            const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
-            setSelectedPair(btcPair.symbol)
-            setCurrentPrice(parseFloat(btcPair.price))
-          }
+          // Varsayılan BTC seç
+          const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
+          setSelectedPair(btcPair.symbol)
+          setCurrentPrice(parseFloat(btcPair.price))
         }
       } catch (error) {
         console.error('❌ Futures trading çiftleri yüklenirken hata:', error)
