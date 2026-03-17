@@ -224,9 +224,9 @@ export default function CompactTradingSimulator() {
     const sign = pnl >= 0 ? '+' : ''
     return `${sign}${pnl.toFixed(2)}`
   }
-  // URL parametrelerinden sinyal bilgilerini oku
+  // URL parametrelerinden sinyal bilgilerini oku ve OTOMATIK UYGULA
   useEffect(() => {
-    console.log('🔍 URL kontrol ediliyor... [v3.0]')
+    console.log('🔍 URL kontrol ediliyor... [v4.0]')
     const urlParams = new URLSearchParams(window.location.search)
     const symbol = urlParams.get('symbol')
     const type = urlParams.get('type')
@@ -235,71 +235,54 @@ export default function CompactTradingSimulator() {
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    console.log('📊 URL Parametreleri [v3.0]:', { symbol, type, entry, tp, sl, leverage })
+    console.log('📊 URL Parametreleri [v4.0]:', { symbol, type, entry, tp, sl, leverage })
 
     if (symbol && type && entry) {
-      console.log('🎯 Sinyal algılandı [v3.0]!')
+      console.log('🎯 Sinyal algılandı - OTOMATIK UYGULANACAK [v4.0]!')
       
-      // Popup state'ini set et
-      const popupData = {
-        show: true,
-        symbol: symbol.toUpperCase(),
-        type: type.toLowerCase(),
-        entry: entry,
-        tp: tp || '',
-        sl: sl || '',
-        leverage: leverage || '10'
+      // Coin'i HEMEN seç
+      const upperSymbol = symbol.toUpperCase()
+      setSelectedPair(upperSymbol)
+      console.log('✅ Coin seçildi:', upperSymbol)
+      
+      // Coin search input'unu güncelle
+      const coinName = upperSymbol.replace('USDT', '')
+      setCoinSearch(coinName)
+      console.log('✅ Search güncellendi:', coinName)
+      
+      // İşlem türünü seç
+      const orderTypeValue = type.toLowerCase() === 'short' ? 'sell' : 'buy'
+      setOrderType(orderTypeValue)
+      console.log('✅ Order type:', orderTypeValue)
+      
+      // Limit moduna geç ve giriş fiyatını ayarla
+      setOrderMode('limit')
+      setLimitPrice(entry)
+      console.log('✅ Limit mode, entry:', entry)
+      
+      // Kaldıracı ayarla
+      const leverageValue = parseInt(leverage || '10')
+      setLeverage(leverageValue)
+      console.log('✅ Leverage:', leverageValue)
+      
+      // TP/SL bilgilerini sakla
+      if (tp || sl) {
+        if (tp) sessionStorage.setItem('signalTP', tp)
+        if (sl) sessionStorage.setItem('signalSL', sl)
+        console.log('✅ TP/SL kaydedildi:', { tp, sl })
       }
       
-      console.log('📦 State ayarlanıyor [v3.0]:', popupData)
-      setSignalPopup(popupData)
-      
-      // URL'yi temizle - DAHA UZUN SÜRE BEKLE (popup açılsın diye)
+      // URL'yi temizle
       setTimeout(() => {
         window.history.replaceState({}, document.title, window.location.pathname)
-        console.log('🧹 URL temizlendi [v3.0]')
-      }, 3000) // 1 saniye yerine 3 saniye
+        console.log('🧹 URL temizlendi [v4.0]')
+      }, 2000)
       
-      console.log('✅ State ayarlandı [v3.0]!')
+      console.log('✅ Sinyal başarıyla uygulandı! [v4.0]')
     } else {
-      console.log('❌ Parametreler eksik [v3.0]')
+      console.log('❌ Parametreler eksik [v4.0]')
     }
   }, [])
-
-  // Sinyal popup'ından sinyali uygula
-  const applySignal = () => {
-    if (!signalPopup) return
-    
-    console.log('🚀 Sinyal uygulanıyor:', signalPopup)
-    
-    // Coin'i seç
-    setSelectedPair(signalPopup.symbol)
-    
-    // Coin search input'unu güncelle
-    const coinName = signalPopup.symbol.replace('USDT', '')
-    setCoinSearch(coinName)
-    
-    // İşlem türünü seç
-    setOrderType(signalPopup.type === 'short' ? 'sell' : 'buy')
-    
-    // Limit moduna geç ve giriş fiyatını ayarla
-    setOrderMode('limit')
-    setLimitPrice(signalPopup.entry)
-    
-    // Kaldıracı ayarla
-    setLeverage(parseInt(signalPopup.leverage))
-    
-    // TP/SL bilgilerini sakla
-    if (signalPopup.tp || signalPopup.sl) {
-      sessionStorage.setItem('signalTP', signalPopup.tp)
-      sessionStorage.setItem('signalSL', signalPopup.sl)
-    }
-    
-    // Popup'ı kapat
-    setSignalPopup(null)
-    
-    console.log('✅ Sinyal başarıyla uygulandı!')
-  }
 
   // Popup state değişikliklerini izle
   useEffect(() => {
@@ -2693,91 +2676,6 @@ export default function CompactTradingSimulator() {
           </div>
         </div>
       )}
-
-      {/* Sinyal Popup - Telegram'dan Gelen Sinyaller */}
-      {(() => {
-        console.log('🎨 Popup render kontrolü:', { signalPopup, show: signalPopup?.show })
-        return signalPopup && signalPopup.show && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#1E2329] rounded-lg max-w-md w-full p-6 shadow-2xl border border-yellow-500/30">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🚨</span>
-                <h2 className="text-xl font-bold text-white">Yeni Sinyal!</h2>
-              </div>
-              <button
-                onClick={() => setSignalPopup(null)}
-                className="text-gray-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Sinyal Bilgileri */}
-            <div className="space-y-4 mb-6">
-              {/* Coin */}
-              <div className="bg-[#2B3139] rounded-lg p-3">
-                <div className="text-xs text-gray-400 mb-1">Coin</div>
-                <div className="text-2xl font-bold text-white">{signalPopup.symbol}</div>
-              </div>
-
-              {/* Tip ve Kaldıraç */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[#2B3139] rounded-lg p-3">
-                  <div className="text-xs text-gray-400 mb-1">İşlem Tipi</div>
-                  <div className={`text-lg font-bold ${signalPopup.type === 'long' ? 'text-green-400' : 'text-red-400'}`}>
-                    {signalPopup.type === 'long' ? '📈 LONG' : '📉 SHORT'}
-                  </div>
-                </div>
-                <div className="bg-[#2B3139] rounded-lg p-3">
-                  <div className="text-xs text-gray-400 mb-1">Kaldıraç</div>
-                  <div className="text-lg font-bold text-yellow-400">{signalPopup.leverage}x</div>
-                </div>
-              </div>
-
-              {/* Fiyatlar */}
-              <div className="space-y-2">
-                <div className="bg-[#2B3139] rounded-lg p-3">
-                  <div className="text-xs text-gray-400 mb-1">Giriş Fiyatı</div>
-                  <div className="text-lg font-bold text-white">{signalPopup.entry} USDT</div>
-                </div>
-                
-                {signalPopup.tp && (
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                    <div className="text-xs text-green-400 mb-1">🎯 Take Profit</div>
-                    <div className="text-lg font-bold text-green-400">{signalPopup.tp} USDT</div>
-                  </div>
-                )}
-                
-                {signalPopup.sl && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                    <div className="text-xs text-red-400 mb-1">🛑 Stop Loss</div>
-                    <div className="text-lg font-bold text-red-400">{signalPopup.sl} USDT</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Butonlar */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSignalPopup(null)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={applySignal}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black py-3 rounded-lg font-bold transition-colors"
-              >
-                Sinyali Uygula
-              </button>
-            </div>
-          </div>
-        </div>
-        )
-      })()}
     </div>
   )
 }
