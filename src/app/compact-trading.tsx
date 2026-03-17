@@ -927,7 +927,7 @@ export default function CompactTradingSimulator() {
         await document.fonts.ready
         
         const canvas = await html2canvas(shareCard, {
-          backgroundColor: '#1a1d24',
+          background: '#1a1d24',
           scale: 2,
           logging: false,
           useCORS: true,
