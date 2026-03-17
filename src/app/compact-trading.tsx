@@ -1010,6 +1010,75 @@ export default function CompactTradingSimulator() {
 
   return (
     <div className="min-h-screen bg-[#0B0E11] text-white">
+      {/* Sinyal Popup - EN ÜSTTE */}
+      {signalPopup && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="bg-[#1E2329] rounded-lg p-6 max-w-md w-full border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                🚨 Yeni Sinyal Geldi!
+              </h2>
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="bg-[#2B3139] rounded p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">Coin:</span>
+                  <span className="text-white font-bold text-lg">{signalPopup.symbol}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">İşlem Türü:</span>
+                  <span className={`font-bold text-lg ${signalPopup.type === 'short' ? 'text-red-400' : 'text-green-400'}`}>
+                    {signalPopup.type === 'short' ? '📉 SHORT' : '📈 LONG'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-sm">Giriş Fiyatı:</span>
+                  <span className="text-white font-bold">${signalPopup.entry}</span>
+                </div>
+                {signalPopup.tp && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-400 text-sm">Take Profit:</span>
+                    <span className="text-green-400 font-bold">${signalPopup.tp}</span>
+                  </div>
+                )}
+                {signalPopup.sl && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-400 text-sm">Stop Loss:</span>
+                    <span className="text-red-400 font-bold">${signalPopup.sl}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Kaldıraç:</span>
+                  <span className="text-yellow-400 font-bold">{signalPopup.leverage}x</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSignalPopup(null)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded font-semibold transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={applySignal}
+                className="flex-1 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black py-3 rounded font-semibold transition-colors"
+              >
+                🚀 Sinyali Uygula
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Liquidation Alert Popup */}
       {liquidationAlert.show && liquidationAlert.trade && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -2609,75 +2678,6 @@ export default function CompactTradingSimulator() {
                   </div>
                 )
               })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sinyal Popup */}
-      {signalPopup && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1E2329] rounded-lg p-6 max-w-md w-full border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                🚨 Yeni Sinyal Geldi!
-              </h2>
-              <button
-                onClick={() => setSignalPopup(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-3 mb-6">
-              <div className="bg-[#2B3139] rounded p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-400 text-sm">Coin:</span>
-                  <span className="text-white font-bold text-lg">{signalPopup.symbol}</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-400 text-sm">İşlem Türü:</span>
-                  <span className={`font-bold text-lg ${signalPopup.type === 'short' ? 'text-red-400' : 'text-green-400'}`}>
-                    {signalPopup.type === 'short' ? '📉 SHORT' : '📈 LONG'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-400 text-sm">Giriş Fiyatı:</span>
-                  <span className="text-white font-bold">${signalPopup.entry}</span>
-                </div>
-                {signalPopup.tp && (
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-400 text-sm">Take Profit:</span>
-                    <span className="text-green-400 font-bold">${signalPopup.tp}</span>
-                  </div>
-                )}
-                {signalPopup.sl && (
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-400 text-sm">Stop Loss:</span>
-                    <span className="text-red-400 font-bold">${signalPopup.sl}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm">Kaldıraç:</span>
-                  <span className="text-yellow-400 font-bold">{signalPopup.leverage}x</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSignalPopup(null)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded font-semibold transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={applySignal}
-                className="flex-1 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black py-3 rounded font-semibold transition-colors"
-              >
-                🚀 Sinyali Uygula
-              </button>
             </div>
           </div>
         </div>
