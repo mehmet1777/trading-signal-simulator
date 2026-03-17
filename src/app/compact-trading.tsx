@@ -241,7 +241,7 @@ export default function CompactTradingSimulator() {
     if (symbol && type && entry) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      setSignalPopup({
+      const popupData = {
         show: true,
         symbol: symbol.toUpperCase(),
         type: type,
@@ -249,9 +249,16 @@ export default function CompactTradingSimulator() {
         tp: tp || '',
         sl: sl || '',
         leverage: leverage || '10'
-      })
+      }
       
-      console.log('✅ Popup state ayarlandı!')
+      console.log('📦 Popup data hazırlandı:', popupData)
+      setSignalPopup(popupData)
+      console.log('✅ setSignalPopup çağrıldı!')
+      
+      // State'i kontrol et
+      setTimeout(() => {
+        console.log('⏰ 100ms sonra state kontrolü yapılacak')
+      }, 100)
       
       // URL'yi temizle (parametreleri kaldır)
       window.history.replaceState({}, document.title, window.location.pathname)
@@ -294,6 +301,11 @@ export default function CompactTradingSimulator() {
     
     console.log('✅ Sinyal başarıyla uygulandı!')
   }
+
+  // Popup state değişikliklerini izle
+  useEffect(() => {
+    console.log('🔄 signalPopup state değişti:', signalPopup)
+  }, [signalPopup])
 
   // localStorage'dan trade geçmişini yükle
   useEffect(() => {
@@ -1010,13 +1022,9 @@ export default function CompactTradingSimulator() {
 
   return (
     <div className="min-h-screen bg-[#0B0E11] text-white">
-      {/* DEBUG: Popup her zaman göster */}
-      {console.log('🔍 Popup render kontrolü:', signalPopup)}
-      
       {/* Sinyal Popup - EN ÜSTTE */}
       {signalPopup && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-          {console.log('✅ Popup DIV render ediliyor!')}
           <div className="bg-[#1E2329] rounded-lg p-6 max-w-md w-full border border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
