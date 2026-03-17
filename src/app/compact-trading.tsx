@@ -324,9 +324,29 @@ export default function CompactTradingSimulator() {
         console.log(`✅ ${pairs.length} Futures coin çifti yüklendi`)
         setTradingPairs(pairs)
         if (pairs.length > 0) {
-          const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
-          setSelectedPair(btcPair.symbol)
-          setCurrentPrice(parseFloat(btcPair.price))
+          // URL parametresi var mı kontrol et
+          const urlParams = new URLSearchParams(window.location.search)
+          const urlSymbol = urlParams.get('symbol')
+          
+          if (urlSymbol) {
+            // URL'den coin geliyorsa onu seç
+            const urlPair = pairs.find((p: TradingPair) => p.symbol.toUpperCase() === urlSymbol.toUpperCase())
+            if (urlPair) {
+              setSelectedPair(urlPair.symbol)
+              setCurrentPrice(parseFloat(urlPair.price))
+              console.log('✅ URL\'den coin seçildi:', urlPair.symbol)
+            } else {
+              // URL'deki coin bulunamazsa BTC seç
+              const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
+              setSelectedPair(btcPair.symbol)
+              setCurrentPrice(parseFloat(btcPair.price))
+            }
+          } else {
+            // URL parametresi yoksa varsayılan BTC seç
+            const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
+            setSelectedPair(btcPair.symbol)
+            setCurrentPrice(parseFloat(btcPair.price))
+          }
         }
       } catch (error) {
         console.error('❌ Futures trading çiftleri yüklenirken hata:', error)
