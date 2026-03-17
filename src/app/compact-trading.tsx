@@ -241,27 +241,32 @@ export default function CompactTradingSimulator() {
     if (symbol && type && entry) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      const popupData = {
-        show: true,
-        symbol: symbol.toUpperCase(),
-        type: type,
-        entry: entry,
-        tp: tp || '',
-        sl: sl || '',
-        leverage: leverage || '10'
+      try {
+        const popupData = {
+          show: true,
+          symbol: symbol.toUpperCase(),
+          type: type,
+          entry: entry,
+          tp: tp || '',
+          sl: sl || '',
+          leverage: leverage || '10'
+        }
+        
+        console.log('📦 Popup data hazırlandı:', popupData)
+        
+        // State'i set et
+        setSignalPopup(popupData)
+        
+        console.log('✅ setSignalPopup çağrıldı!')
+        
+        // URL'yi temizle (parametreleri kaldır) - SONRA yap
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname)
+          console.log('🧹 URL temizlendi')
+        }, 500)
+      } catch (error) {
+        console.error('❌ Popup ayarlama hatası:', error)
       }
-      
-      console.log('📦 Popup data hazırlandı:', popupData)
-      setSignalPopup(popupData)
-      console.log('✅ setSignalPopup çağrıldı!')
-      
-      // State'i kontrol et
-      setTimeout(() => {
-        console.log('⏰ 100ms sonra state kontrolü yapılacak')
-      }, 100)
-      
-      // URL'yi temizle (parametreleri kaldır)
-      window.history.replaceState({}, document.title, window.location.pathname)
     } else {
       console.log('❌ URL parametreleri eksik veya yok')
     }
