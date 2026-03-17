@@ -225,24 +225,13 @@ export default function CompactTradingSimulator() {
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    // URL parametreleri varsa ve coin listesi yüklendiyse işle
+    // URL parametreleri varsa işle (sadece bir kez)
     if (symbol && type && entry) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      // Coin listesi yüklendiyse coin'i seç
-      if (tradingPairs.length > 0) {
-        const coinExists = tradingPairs.find(pair => pair.symbol.toUpperCase() === symbol.toUpperCase())
-        if (coinExists) {
-          setSelectedPair(symbol.toUpperCase())
-          console.log('✅ Coin seçildi:', symbol.toUpperCase())
-        } else {
-          console.log('⚠️ Coin listede bulunamadı:', symbol)
-        }
-      } else {
-        // Coin listesi henüz yüklenmemişse, varsayılan olarak seç (liste yüklenince düzeltilecek)
-        setSelectedPair(symbol.toUpperCase())
-        console.log('⏳ Coin listesi henüz yüklenmedi, varsayılan seçim:', symbol.toUpperCase())
-      }
+      // Coin'i seç
+      setSelectedPair(symbol.toUpperCase())
+      console.log('✅ Coin seçildi:', symbol.toUpperCase())
       
       // İşlem türünü seç
       setOrderType(type === 'short' ? 'sell' : 'buy')
@@ -267,7 +256,7 @@ export default function CompactTradingSimulator() {
       // URL'yi temizle (parametreleri kaldır)
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [tradingPairs])
+  }, []) // Dependency array boş - sadece mount'ta çalışır
 
   // localStorage'dan trade geçmişini yükle
   useEffect(() => {
