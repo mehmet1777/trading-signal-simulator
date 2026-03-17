@@ -226,7 +226,7 @@ export default function CompactTradingSimulator() {
   }
   // URL parametrelerinden sinyal bilgilerini oku
   useEffect(() => {
-    console.log('🔍 URL kontrol ediliyor... [v2.0]')
+    console.log('🔍 URL kontrol ediliyor... [v3.0]')
     const urlParams = new URLSearchParams(window.location.search)
     const symbol = urlParams.get('symbol')
     const type = urlParams.get('type')
@@ -235,33 +235,34 @@ export default function CompactTradingSimulator() {
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
 
-    console.log('📊 URL Parametreleri [v2.0]:', { symbol, type, entry, tp, sl, leverage })
+    console.log('📊 URL Parametreleri [v3.0]:', { symbol, type, entry, tp, sl, leverage })
 
     if (symbol && type && entry) {
-      console.log('🎯 Sinyal algılandı [v2.0]!')
+      console.log('🎯 Sinyal algılandı [v3.0]!')
       
       // Popup state'ini set et
       const popupData = {
         show: true,
         symbol: symbol.toUpperCase(),
-        type: type,
+        type: type.toLowerCase(),
         entry: entry,
         tp: tp || '',
         sl: sl || '',
         leverage: leverage || '10'
       }
       
-      console.log('📦 State ayarlanıyor [v2.0]:', popupData)
+      console.log('📦 State ayarlanıyor [v3.0]:', popupData)
       setSignalPopup(popupData)
-      console.log('✅ State ayarlandı [v2.0]!')
       
-      // URL'yi temizle
+      // URL'yi temizle - DAHA UZUN SÜRE BEKLE (popup açılsın diye)
       setTimeout(() => {
         window.history.replaceState({}, document.title, window.location.pathname)
-        console.log('🧹 URL temizlendi [v2.0]')
-      }, 1000)
+        console.log('🧹 URL temizlendi [v3.0]')
+      }, 3000) // 1 saniye yerine 3 saniye
+      
+      console.log('✅ State ayarlandı [v3.0]!')
     } else {
-      console.log('❌ Parametreler eksik [v2.0]')
+      console.log('❌ Parametreler eksik [v3.0]')
     }
   }, [])
 
@@ -2694,9 +2695,11 @@ export default function CompactTradingSimulator() {
       )}
 
       {/* Sinyal Popup - Telegram'dan Gelen Sinyaller */}
-      {signalPopup && signalPopup.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1E2329] rounded-lg max-w-md w-full p-6 shadow-2xl border border-yellow-500/30">
+      {(() => {
+        console.log('🎨 Popup render kontrolü:', { signalPopup, show: signalPopup?.show })
+        return signalPopup && signalPopup.show && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#1E2329] rounded-lg max-w-md w-full p-6 shadow-2xl border border-yellow-500/30">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -2773,7 +2776,8 @@ export default function CompactTradingSimulator() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
