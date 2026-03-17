@@ -62,7 +62,7 @@ interface BinanceTickerItem {
 
 export default function CompactTradingSimulator() {
   const [tradingPairs, setTradingPairs] = useState<TradingPair[]>([])
-  const [selectedPair, setSelectedPair] = useState<string>('BTCUSDT')
+  const [selectedPair, setSelectedPair] = useState<string>('')
   const [currentPrice, setCurrentPrice] = useState<number>(0)
   const [leverage, setLeverage] = useState<number>(10)
   const [investment, setInvestment] = useState<number>(100)
@@ -93,10 +93,61 @@ export default function CompactTradingSimulator() {
     show: boolean
     trade: TradeData | null
   }>({ show: false, trade: null })
+  
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false)
+  const [onboardingStep, setOnboardingStep] = useState<number>(0)
+  const [onboardingAgreed, setOnboardingAgreed] = useState<boolean>(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const priceUpdateRef = useRef<HTMLDivElement>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
+  
+  // Onboarding adımları
+  const onboardingSteps = [
+    {
+      title: "İndicSigs Futures Simülatörüne Hoş Geldiniz! 🎉",
+      description: "Risk almadan futures trading öğrenin. Gerçek piyasa verileriyle pratik yapın!\n\n⏰ Önemli: Gerçek zamanlı fiyatlar kullanılır. İndicSigs Telegram grubundan gelen sinyali geç test ederseniz fiyatlar değişmiş olur. Doğru sonuç için sinyali aldığınız anda deneyin!",
+      target: null,
+      position: "center"
+    },
+    {
+      title: "Coin Seçimi",
+      description: "İlk olarak işlem yapmak istediğiniz coin'i seçin. Arama yaparak kolayca bulabilirsiniz.",
+      target: ".coin-search-container",
+      position: "bottom"
+    },
+    {
+      title: "Market vs Limit",
+      description: "Market: Anında işlem açar (mevcut fiyattan)\nLimit: Belirlediğiniz fiyata ulaşınca işlem açar",
+      target: ".order-type-selector",
+      position: "bottom"
+    },
+    {
+      title: "Yatırım Miktarı",
+      description: "Ne kadar yatırım yapmak istediğinizi girin. Hızlı seçim için yüzde butonlarını kullanabilirsiniz (%25, %50, %75, %100)",
+      target: ".amount-input-section",
+      position: "bottom"
+    },
+    {
+      title: "Kaldıraç Ayarı ⚠️",
+      description: "Yatırım miktarı arttıkça maksimum kaldıraç düşer.\n\nÖrnek: $100 → 125x, $1000 → 100x, $5000 → 25x",
+      target: ".leverage-section",
+      position: "top"
+    },
+    {
+      title: "İlk İşleminizi Açın",
+      description: "Miktar girin ve Buy (Long) veya Sell (Short) butonuna tıklayarak pozisyon açın!",
+      target: "button[class*='bg-[#0ECB81]'], button[class*='bg-[#F6465D]']",
+      position: "top"
+    },
+    {
+      title: "Harika! Artık Hazırsınız ✅",
+      description: "Pozisyonlarınızı sağ panelden takip edebilir, TP/SL ayarlayabilirsiniz. Başarılar!",
+      target: null,
+      position: "center"
+    }
+  ]
 
   // İstatistik hesaplama fonksiyonları
   const calculateStats = () => {
@@ -248,6 +299,16 @@ export default function CompactTradingSimulator() {
         }))
         setTradeHistory(history)
       }
+      
+      // Onboarding kontrolü - ilk kez mi açılıyor?
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding')
+      if (!hasSeenOnboarding) {
+        // 1 saniye bekle, sayfa yüklendikten sonra göster
+        setTimeout(() => {
+          setShowOnboarding(true)
+          setOnboardingStep(0)
+        }, 1000)
+      }
     } catch (error) {
       console.error('Trade geçmişi yükleme hatası:', error)
       localStorage.removeItem('activeTrades')
@@ -277,12 +338,8 @@ export default function CompactTradingSimulator() {
         console.log(`✅ ${pairs.length} Futures coin çifti yüklendi`)
         setTradingPairs(pairs)
         
-        if (pairs.length > 0) {
-          // Varsayılan BTC seç
-          const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
-          setSelectedPair(btcPair.symbol)
-          setCurrentPrice(parseFloat(btcPair.price))
-        }
+        // Hiçbir coin seçme - kullanıcı seçsin
+        console.log('ℹ️ Coin seçilmedi - kullanıcı dropdown\'dan seçecek')
       } catch (error) {
         console.error('❌ Futures trading çiftleri yüklenirken hata:', error)
       }
@@ -667,6 +724,29 @@ export default function CompactTradingSimulator() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Onboarding aktifken body scroll'u kilitle
+  useEffect(() => {
+    if (showOnboarding) {
+      // Scroll'u kilitle
+      document.body.style.overflow = 'hidden'
+      // Mobil için ek önlem
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+    } else {
+      // Scroll'u geri aç
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+
+    // Cleanup: component unmount olduğunda scroll'u geri aç
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+  }, [showOnboarding])
+
   const calculateLiquidationPrice = (entryPrice: number, leverage: number, type: 'long' | 'short') => {
     const priceChange = entryPrice / leverage
     
@@ -678,7 +758,17 @@ export default function CompactTradingSimulator() {
   }
 
   const startTrade = () => {
-    if (currentPrice === 0) return
+    // Coin seçilmiş mi kontrol et
+    if (!selectedPair) {
+      alert('⚠️ Lütfen önce bir coin seçin!')
+      return
+    }
+    
+    if (currentPrice === 0) {
+      alert('⚠️ Fiyat bilgisi alınamadı, lütfen tekrar deneyin!')
+      return
+    }
+    
     if (activeTrades.length >= 5) {
       alert('⚠️ Maksimum 5 pozisyon açabilirsiniz!')
       return
@@ -910,8 +1000,303 @@ export default function CompactTradingSimulator() {
     }, 300)
   }
 
+  // Onboarding fonksiyonları
+  const nextOnboardingStep = () => {
+    if (onboardingStep < onboardingSteps.length - 1) {
+      setOnboardingStep(onboardingStep + 1)
+    } else {
+      completeOnboarding()
+    }
+  }
+
+  const skipOnboarding = () => {
+    completeOnboarding()
+  }
+
+  const completeOnboarding = (dontShowAgain: boolean = false) => {
+    setShowOnboarding(false)
+    setOnboardingStep(0)
+    setOnboardingAgreed(false) // Reset checkbox
+    if (dontShowAgain) {
+      localStorage.setItem('hasSeenOnboarding', 'true')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0E11] text-white">
+      {/* Onboarding Overlay */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[9999]">
+          {/* Dark Overlay - Daha açık */}
+          <div 
+            className="absolute inset-0 bg-black transition-opacity duration-300"
+            style={{ opacity: 0.3 }}
+          />
+          
+          {/* Spotlight Effect - Highlight target element */}
+          {onboardingSteps[onboardingStep].target && (() => {
+            const targetEl = document.querySelector(onboardingSteps[onboardingStep].target!)
+            if (!targetEl) return null
+            
+            const rect = targetEl.getBoundingClientRect()
+            return (
+              <div 
+                className="absolute pointer-events-none transition-all duration-500"
+                style={{
+                  top: `${rect.top - 8}px`,
+                  left: `${rect.left - 8}px`,
+                  width: `${rect.width + 16}px`,
+                  height: `${rect.height + 16}px`,
+                  boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.3), 0 0 20px 4px rgba(240, 185, 11, 0.6)',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(240, 185, 11, 0.9)',
+                  zIndex: 9998
+                }}
+              />
+            )
+          })()}
+          
+          {/* Onboarding Card - Mobil Uyumlu */}
+          <div 
+            className={`absolute bg-[#1E2329] rounded-lg shadow-2xl border-2 border-[#F0B90B] transition-all duration-500 ${
+              onboardingSteps[onboardingStep].position === 'center' 
+                ? 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md mx-auto' 
+                : 'w-[90%] max-w-sm'
+            }`}
+            style={{
+              zIndex: 10000,
+              ...(onboardingSteps[onboardingStep].position !== 'center' && onboardingSteps[onboardingStep].target ? (() => {
+                const targetEl = document.querySelector(onboardingSteps[onboardingStep].target!)
+                if (targetEl) {
+                  const rect = targetEl.getBoundingClientRect()
+                  const isInBottomHalf = rect.top > window.innerHeight / 2
+                  
+                  // Popup yüksekliğini tahmin et (yaklaşık 200px)
+                  const estimatedPopupHeight = 200
+                  const spaceAbove = rect.top
+                  const spaceBelow = window.innerHeight - rect.bottom
+                  
+                  // Eğer element ekranın alt yarısındaysa VE üstte yeterli alan varsa popup üstte göster
+                  if ((isInBottomHalf || onboardingSteps[onboardingStep].position === 'top') && spaceAbove > estimatedPopupHeight) {
+                    return {
+                      bottom: `${window.innerHeight - rect.top + 16}px`,
+                      left: '50%',
+                      transform: 'translateX(-50%)'
+                    }
+                  } else {
+                    // Aksi halde popup altta göster veya ekran içinde tut
+                    if (spaceBelow > estimatedPopupHeight) {
+                      return {
+                        top: `${rect.bottom + 16}px`,
+                        left: '50%',
+                        transform: 'translateX(-50%)'
+                      }
+                    } else {
+                      // Hiçbir yerde yeterli alan yoksa, ekranın ortasına yakın göster
+                      return {
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)'
+                      }
+                    }
+                  }
+                }
+                return {}
+              })() : {})
+            }}
+          >
+            {/* Header - Kompakt */}
+            <div className="bg-gradient-to-r from-[#F0B90B] to-[#FCD535] px-4 py-3 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base sm:text-lg font-bold text-black pr-2 leading-tight">
+                  {onboardingSteps[onboardingStep].title}
+                </h3>
+                <button
+                  onClick={skipOnboarding}
+                  className="text-black hover:text-gray-700 transition-colors flex-shrink-0"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content - Kompakt */}
+            <div className="p-4">
+              {/* İlk adımda vurgulu uyarı */}
+              {onboardingStep === 0 ? (
+                <div className="space-y-3 mb-4">
+                  <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+                    Risk almadan futures trading öğrenin. Gerçek piyasa verileriyle pratik yapın!
+                  </p>
+                  
+                  {/* Vurgulu Uyarı Kutusu */}
+                  <div className="bg-gradient-to-r from-red-900/30 to-orange-900/30 border-2 border-yellow-500 rounded-lg p-3">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-yellow-500 text-lg flex-shrink-0">⏰</span>
+                      <div>
+                        <p className="text-yellow-400 font-bold text-sm mb-1">ÖNEMLİ UYARI:</p>
+                        <p className="text-yellow-100 text-xs leading-relaxed">
+                          Gerçek zamanlı fiyatlar kullanılır. <span className="font-bold text-yellow-300">İndicSigs Telegram grubundan gelen sinyali geç test ederseniz fiyatlar değişmiş olur.</span> Doğru sonuç için sinyali aldığınız anda deneyin!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : onboardingStep === onboardingSteps.length - 1 ? (
+                /* Son adımda checkbox ile onay */
+                <div className="space-y-3 mb-4">
+                  <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+                    Pozisyonlarınızı sağ panelden takip edebilir, TP/SL ayarlayabilirsiniz. Başarılar!
+                  </p>
+                  
+                  {/* Hatırlatma + Checkbox */}
+                  <div className="bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-3">
+                    <p className="text-yellow-400 text-xs mb-2 font-semibold">🔔 Hatırlatma:</p>
+                    <p className="text-gray-300 text-xs mb-3">
+                      Telegram sinyallerini <span className="text-yellow-400 font-bold">anında</span> test edin. Geç giriş yaparsanız fiyatlar değişir ve sonuçlar farklı olur.
+                    </p>
+                    
+                    {/* Checkbox ile vurgulu alan */}
+                    <div className={`rounded-lg p-2 transition-all duration-300 ${
+                      !onboardingAgreed ? 'bg-red-900/20 border-2 border-red-500 animate-pulse' : 'bg-transparent border-2 border-transparent'
+                    }`}>
+                      <label className="flex items-start space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={onboardingAgreed}
+                          onChange={(e) => setOnboardingAgreed(e.target.checked)}
+                          className="w-5 h-5 mt-0.5 text-[#F0B90B] bg-[#2B3139] border-gray-600 rounded flex-shrink-0"
+                        />
+                        <span className="text-xs text-gray-300">
+                          Anladım, sinyalleri aldığım anda test etmeliyim
+                        </span>
+                      </label>
+                      
+                      {/* Checkbox işaretli değilse uyarı göster */}
+                      {!onboardingAgreed && (
+                        <p className="text-red-400 text-xs mt-2 ml-8 font-semibold">
+                          👆 Lütfen işaretleyin
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Diğer adımlar normal */
+                <p className="text-gray-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line mb-4">
+                  {onboardingSteps[onboardingStep].description}
+                </p>
+              )}
+
+              {/* Progress Indicator */}
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                {onboardingSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === onboardingStep 
+                        ? 'w-6 bg-[#F0B90B]' 
+                        : index < onboardingStep 
+                        ? 'w-1.5 bg-[#F0B90B] opacity-50' 
+                        : 'w-1.5 bg-gray-600'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Actions - Mobil Uyumlu */}
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-400">
+                  {onboardingStep + 1} / {onboardingSteps.length}
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  {onboardingStep > 0 && (
+                    <button
+                      onClick={() => setOnboardingStep(onboardingStep - 1)}
+                      className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      Geri
+                    </button>
+                  )}
+                  
+                  {onboardingStep < onboardingSteps.length - 1 ? (
+                    <button
+                      onClick={nextOnboardingStep}
+                      className="px-4 py-1.5 bg-[#F0B90B] hover:bg-[#FCD535] text-black font-medium rounded-lg transition-colors text-xs sm:text-sm"
+                    >
+                      Devam
+                    </button>
+                  ) : (
+                    <div className="flex flex-col items-end space-y-2">
+                      <label className="flex items-center space-x-1.5 text-xs text-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          id="dontShowAgain"
+                          className="w-3.5 h-3.5 text-[#F0B90B] bg-[#2B3139] border-gray-600 rounded"
+                        />
+                        <span className="text-xs">Bir daha gösterme</span>
+                      </label>
+                      <button
+                        onClick={() => {
+                          const checkbox = document.getElementById('dontShowAgain') as HTMLInputElement
+                          completeOnboarding(checkbox?.checked || false)
+                        }}
+                        disabled={!onboardingAgreed}
+                        className={`px-4 py-1.5 font-medium rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
+                          onboardingAgreed 
+                            ? 'bg-[#0ECB81] hover:bg-[#0BB574] text-white cursor-pointer' 
+                            : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        {onboardingAgreed ? 'Başlayalım! 🚀' : 'Onay kutusunu işaretleyin ↑'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Arrow Pointer - Show for non-center positions */}
+            {onboardingSteps[onboardingStep].position !== 'center' && onboardingSteps[onboardingStep].target && (() => {
+              const targetEl = document.querySelector(onboardingSteps[onboardingStep].target!)
+              if (!targetEl) return null
+              
+              const rect = targetEl.getBoundingClientRect()
+              const isInBottomHalf = rect.top > window.innerHeight / 2
+              const showArrowUp = isInBottomHalf || onboardingSteps[onboardingStep].position === 'top'
+              
+              return (
+                <div 
+                  className="absolute w-0 h-0"
+                  style={{
+                    ...(showArrowUp ? {
+                      // Arrow pointing up (popup is above target)
+                      bottom: '-10px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      borderLeft: '10px solid transparent',
+                      borderRight: '10px solid transparent',
+                      borderTop: '10px solid #1E2329'
+                    } : {
+                      // Arrow pointing down (popup is below target)
+                      top: '-10px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      borderLeft: '10px solid transparent',
+                      borderRight: '10px solid transparent',
+                      borderBottom: '10px solid #F0B90B'
+                    })
+                  }}
+                />
+              )
+            })()}
+          </div>
+        </div>
+      )}
+      
       {/* Liquidation Alert Popup */}
       {liquidationAlert.show && liquidationAlert.trade && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -1212,7 +1597,7 @@ export default function CompactTradingSimulator() {
                 <div className="flex-1 relative coin-search-container">
                   <input
                     type="text"
-                    placeholder="Coin ara... (örn: BTC, ETH)"
+                    placeholder={selectedPair ? "Coin ara..." : "🔍 Coin Seçin... (örn: BTC, ETH)"}
                     value={coinSearch}
                     onChange={(e) => {
                       setCoinSearch(e.target.value)
@@ -1258,18 +1643,26 @@ export default function CompactTradingSimulator() {
                   )}
                 </div>
                 
-                {/* Fiyat Gösterimi - Sağ */}
-                <div className="flex items-center space-x-1 bg-[#2B3139] rounded px-2 py-1.5">
-                  <div className={`w-1 h-1 rounded-full ${
-                    wsConnectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
-                  }`}></div>
-                  <div 
-                    ref={priceUpdateRef}
-                    className="text-sm font-bold text-white transition-colors duration-300 whitespace-nowrap"
-                  >
-                    ${formatPrice(currentPrice)}
+                {/* Fiyat Gösterimi - Sağ (Sadece coin seçiliyse göster) */}
+                {selectedPair ? (
+                  <div className="flex items-center space-x-1 bg-[#2B3139] rounded px-2 py-1.5">
+                    <div className={`w-1 h-1 rounded-full ${
+                      wsConnectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
+                    }`}></div>
+                    <div 
+                      ref={priceUpdateRef}
+                      className="text-sm font-bold text-white transition-colors duration-300 whitespace-nowrap"
+                    >
+                      ${formatPrice(currentPrice)}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center space-x-1 bg-[#2B3139] rounded px-2 py-1.5">
+                    <div className="text-sm text-gray-500 whitespace-nowrap">
+                      Fiyat
+                    </div>
+                  </div>
+                )}
               </div>
               {/* Buy/Sell Tabs - Binance Style */}
               <div className="flex bg-[#2B3139] rounded p-0.5">
@@ -1302,7 +1695,7 @@ export default function CompactTradingSimulator() {
               </div>
 
               {/* Order Type */}
-              <div className="flex items-center bg-[#2B3139] rounded px-2 py-1.5">
+              <div className="flex items-center bg-[#2B3139] rounded px-2 py-1.5 order-type-selector">
                 <svg className="w-3 h-3 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
@@ -1319,42 +1712,83 @@ export default function CompactTradingSimulator() {
 
 
               {/* Amount Input */}
-              <div className="bg-[#2B3139] rounded px-2 py-0.5">
-                <div className="flex items-center justify-between">
-                  <button 
-                    onClick={() => {
-                      const current = parseFloat(orderAmount) || 0
-                      const newAmount = Math.max(0, current - 10)
-                      setOrderAmount(newAmount.toString())
-                    }}
-                    className="w-3 h-3 flex items-center justify-center bg-[#3B4149] hover:bg-[#4B5159] rounded text-gray-300 hover:text-white transition-colors"
-                  >
-                    <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  <div className="flex-1 text-center">
-                    <div className="text-xs text-gray-400 mb-0.5">Amount (USDT)</div>
-                    <input
-                      type="number"
-                      value={orderAmount}
-                      onChange={(e) => setOrderAmount(e.target.value)}
-                      className="w-full bg-transparent text-white text-center text-sm focus:outline-none placeholder-gray-500"
-                      placeholder="0"
-                    />
+              <div className="amount-input-section">
+                <div className="bg-[#2B3139] rounded px-2 py-0.5">
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => {
+                        const current = parseFloat(orderAmount) || 0
+                        const newAmount = Math.max(0, current - 10)
+                        setOrderAmount(newAmount.toString())
+                      }}
+                      className="w-3 h-3 flex items-center justify-center bg-[#3B4149] hover:bg-[#4B5159] rounded text-gray-300 hover:text-white transition-colors"
+                    >
+                      <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="flex-1 text-center">
+                      <div className="text-xs text-gray-400 mb-0.5">Amount (USDT)</div>
+                      <input
+                        type="number"
+                        value={orderAmount}
+                        onChange={(e) => setOrderAmount(e.target.value)}
+                        className="w-full bg-transparent text-white text-center text-sm focus:outline-none placeholder-gray-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const current = parseFloat(orderAmount) || 0
+                        const newAmount = current + 10
+                        setOrderAmount(newAmount.toString())
+                      }}
+                      className="w-3 h-3 flex items-center justify-center bg-[#3B4149] hover:bg-[#4B5159] rounded text-gray-300 hover:text-white transition-colors"
+                    >
+                      <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => {
-                      const current = parseFloat(orderAmount) || 0
-                      const newAmount = current + 10
-                      setOrderAmount(newAmount.toString())
+                </div>
+                
+                {/* Percentage Slider - Amount section içinde */}
+                <div className="space-y-0.5 mt-1.5">
+                  <div className="flex justify-between gap-0.5">
+                    {[0, 25, 50, 75, 100].map((percent) => (
+                      <button
+                        key={percent}
+                        onClick={() => {
+                          setPercentageAmount(percent)
+                          const amount = (availableBalance * percent / 100).toFixed(2)
+                          setOrderAmount(amount)
+                        }}
+                        className={`flex-1 py-0.5 text-xs rounded transition-colors ${
+                          percentageAmount >= percent 
+                            ? 'bg-[#F0B90B] text-black font-medium' 
+                            : 'bg-[#2B3139] text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {percent}%
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={percentageAmount}
+                    onChange={(e) => {
+                      const percent = Number(e.target.value)
+                      setPercentageAmount(percent)
+                      const amount = (availableBalance * percent / 100).toFixed(2)
+                      setOrderAmount(amount)
                     }}
-                    className="w-3 h-3 flex items-center justify-center bg-[#3B4149] hover:bg-[#4B5159] rounded text-gray-300 hover:text-white transition-colors"
-                  >
-                    <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                    className="w-full h-0.5 bg-[#2B3139] rounded appearance-none cursor-pointer slider"
+                    style={{
+                      background: `linear-gradient(to right, #F0B90B 0%, #F0B90B ${percentageAmount}%, #2B3139 ${percentageAmount}%, #2B3139 100%)`
+                    }}
+                  />
                 </div>
               </div>
 
@@ -1399,49 +1833,9 @@ export default function CompactTradingSimulator() {
                   </div>
                 </div>
               )}
-              {/* Percentage Slider */}
-              <div className="space-y-0.5">
-                <div className="flex justify-between gap-0.5">
-                  {[0, 25, 50, 75, 100].map((percent) => (
-                    <button
-                      key={percent}
-                      onClick={() => {
-                        setPercentageAmount(percent)
-                        const amount = (availableBalance * percent / 100).toFixed(2)
-                        setOrderAmount(amount)
-                      }}
-                      className={`flex-1 py-0.5 text-xs rounded transition-colors ${
-                        percentageAmount >= percent 
-                          ? 'bg-[#F0B90B] text-black font-medium' 
-                          : 'bg-[#2B3139] text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {percent}%
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={percentageAmount}
-                  onChange={(e) => {
-                    const percent = Number(e.target.value)
-                    setPercentageAmount(percent)
-                    const amount = (availableBalance * percent / 100).toFixed(2)
-                    setOrderAmount(amount)
-                  }}
-                  className="w-full h-0.5 bg-[#2B3139] rounded appearance-none cursor-pointer slider"
-                  style={{
-                    background: `linear-gradient(to right, #F0B90B 0%, #F0B90B ${percentageAmount}%, #2B3139 ${percentageAmount}%, #2B3139 100%)`
-                  }}
-                />
-              </div>
-
-
 
               {/* Kaldıraç */}
-              <div>
+              <div className="leverage-section">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-xs text-gray-400">Kaldıraç: {leverage}x</span>
                   <span className="text-xs text-gray-400">(Max: {maxLeverage}x)</span>
@@ -2309,10 +2703,10 @@ export default function CompactTradingSimulator() {
       })()}
 
       {/* İstatistikler Butonu - Sayfanın En Altı */}
-      <div className="mt-4 pb-4">
+      <div className="mt-4 pb-4 flex gap-2">
         <button
           onClick={() => setShowStatsModal(true)}
-          className="w-full py-3 bg-gradient-to-r from-[#F0B90B] to-[#D4A017] hover:from-[#D4A017] hover:to-[#B8901A] text-black rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
+          className="flex-1 py-3 bg-gradient-to-r from-[#F0B90B] to-[#D4A017] hover:from-[#D4A017] hover:to-[#B8901A] text-black rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
         >
           <svg 
             className="w-5 h-5" 
@@ -2328,6 +2722,21 @@ export default function CompactTradingSimulator() {
             />
           </svg>
           İstatistikler
+        </button>
+        
+        {/* Test Butonu - Onboarding'i tekrar göster (DEV ONLY) */}
+        <button
+          onClick={() => {
+            localStorage.removeItem('hasSeenOnboarding')
+            setShowOnboarding(true)
+            setOnboardingStep(0)
+          }}
+          className="bg-[#2B3139] hover:bg-[#3B4149] text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
+          title="Rehberi Tekrar Göster"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
         </button>
       </div>
 
