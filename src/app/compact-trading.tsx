@@ -1010,9 +1010,13 @@ export default function CompactTradingSimulator() {
 
   return (
     <div className="min-h-screen bg-[#0B0E11] text-white">
+      {/* DEBUG: Popup her zaman göster */}
+      {console.log('🔍 Popup render kontrolü:', signalPopup)}
+      
       {/* Sinyal Popup - EN ÜSTTE */}
       {signalPopup && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          {console.log('✅ Popup DIV render ediliyor!')}
           <div className="bg-[#1E2329] rounded-lg p-6 max-w-md w-full border border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
