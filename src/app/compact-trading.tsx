@@ -229,8 +229,12 @@ export default function CompactTradingSimulator() {
     if (symbol && type && entry) {
       console.log('🎯 Sinyal parametreleri algılandı:', { symbol, type, entry, tp, sl, leverage })
       
-      // Coin'i seç
+      // Coin'i hemen seç (coin listesi yüklenmeden)
       setSelectedPair(symbol.toUpperCase())
+      
+      // Coin search input'unu da güncelle
+      const coinName = symbol.toUpperCase().replace('USDT', '')
+      setCoinSearch(coinName)
       console.log('✅ Coin seçildi:', symbol.toUpperCase())
       
       // İşlem türünü seç
