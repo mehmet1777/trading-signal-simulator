@@ -226,6 +226,7 @@ export default function CompactTradingSimulator() {
   }
   // URL parametrelerinden sinyal bilgilerini oku
   useEffect(() => {
+    console.log('🔍 URL kontrol ediliyor...')
     const urlParams = new URLSearchParams(window.location.search)
     const symbol = urlParams.get('symbol')
     const type = urlParams.get('type') // 'long' veya 'short'
@@ -233,6 +234,8 @@ export default function CompactTradingSimulator() {
     const tp = urlParams.get('tp')
     const sl = urlParams.get('sl')
     const leverage = urlParams.get('leverage')
+
+    console.log('📊 URL Parametreleri:', { symbol, type, entry, tp, sl, leverage })
 
     // URL parametreleri varsa popup göster
     if (symbol && type && entry) {
@@ -248,8 +251,12 @@ export default function CompactTradingSimulator() {
         leverage: leverage || '10'
       })
       
+      console.log('✅ Popup state ayarlandı!')
+      
       // URL'yi temizle (parametreleri kaldır)
       window.history.replaceState({}, document.title, window.location.pathname)
+    } else {
+      console.log('❌ URL parametreleri eksik veya yok')
     }
   }, []) // Dependency array boş - sadece mount'ta çalışır
 
