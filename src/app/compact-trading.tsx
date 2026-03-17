@@ -215,66 +215,6 @@ export default function CompactTradingSimulator() {
     const sign = pnl >= 0 ? '+' : ''
     return `${sign}${pnl.toFixed(2)}`
   }
-  // URL parametrelerinden sinyal bilgilerini oku ve OTOMATIK UYGULA
-  useEffect(() => {
-    console.log('🔍 URL kontrol ediliyor... [v4.0]')
-    const urlParams = new URLSearchParams(window.location.search)
-    const symbol = urlParams.get('symbol')
-    const type = urlParams.get('type')
-    const entry = urlParams.get('entry')
-    const tp = urlParams.get('tp')
-    const sl = urlParams.get('sl')
-    const leverage = urlParams.get('leverage')
-
-    console.log('📊 URL Parametreleri [v4.0]:', { symbol, type, entry, tp, sl, leverage })
-
-    if (symbol && type && entry) {
-      console.log('🎯 Sinyal algılandı - OTOMATIK UYGULANACAK [v4.0]!')
-      
-      // Coin'i HEMEN seç
-      const upperSymbol = symbol.toUpperCase()
-      setSelectedPair(upperSymbol)
-      console.log('✅ Coin seçildi:', upperSymbol)
-      
-      // Coin search input'unu güncelle
-      const coinName = upperSymbol.replace('USDT', '')
-      setCoinSearch(coinName)
-      console.log('✅ Search güncellendi:', coinName)
-      
-      // İşlem türünü seç
-      const orderTypeValue = type.toLowerCase() === 'short' ? 'sell' : 'buy'
-      setOrderType(orderTypeValue)
-      console.log('✅ Order type:', orderTypeValue)
-      
-      // Limit moduna geç ve giriş fiyatını ayarla
-      setOrderMode('limit')
-      setLimitPrice(entry)
-      console.log('✅ Limit mode, entry:', entry)
-      
-      // Kaldıracı ayarla
-      const leverageValue = parseInt(leverage || '10')
-      setLeverage(leverageValue)
-      console.log('✅ Leverage:', leverageValue)
-      
-      // TP/SL bilgilerini sakla
-      if (tp || sl) {
-        if (tp) sessionStorage.setItem('signalTP', tp)
-        if (sl) sessionStorage.setItem('signalSL', sl)
-        console.log('✅ TP/SL kaydedildi:', { tp, sl })
-      }
-      
-      // URL'yi temizle
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname)
-        console.log('🧹 URL temizlendi [v4.0]')
-      }, 2000)
-      
-      console.log('✅ Sinyal başarıyla uygulandı! [v4.0]')
-    } else {
-      console.log('❌ Parametreler eksik [v4.0]')
-    }
-  }, [])
-
   // localStorage'dan trade geçmişini yükle
   useEffect(() => {
     try {
@@ -316,7 +256,7 @@ export default function CompactTradingSimulator() {
     }
   }, [])
 
-  // Binance'dan trading çiftlerini çek
+  // Binance'dan trading çiftlerini çek VE URL parametrelerini uygula
   useEffect(() => {
     const fetchTradingPairs = async () => {
       try {
@@ -336,20 +276,68 @@ export default function CompactTradingSimulator() {
         
         console.log(`✅ ${pairs.length} Futures coin çifti yüklendi`)
         setTradingPairs(pairs)
+        
         if (pairs.length > 0) {
-          // URL parametresi var mı kontrol et
+          // URL parametrelerini kontrol et
           const urlParams = new URLSearchParams(window.location.search)
           const urlSymbol = urlParams.get('symbol')
+          const type = urlParams.get('type')
+          const entry = urlParams.get('entry')
+          const tp = urlParams.get('tp')
+          const sl = urlParams.get('sl')
+          const leverage = urlParams.get('leverage')
           
-          if (urlSymbol) {
-            // URL'den coin geliyorsa onu seç
-            const urlPair = pairs.find((p: TradingPair) => p.symbol.toUpperCase() === urlSymbol.toUpperCase())
+          console.log('📊 URL Parametreleri:', { urlSymbol, type, entry, tp, sl, leverage })
+          
+          if (urlSymbol && type && entry) {
+            console.log('🎯 Sinyal algılandı - OTOMATIK UYGULANACAK!')
+            
+            // Coin'i bul ve seç
+            const upperSymbol = urlSymbol.toUpperCase()
+            const urlPair = pairs.find((p: TradingPair) => p.symbol === upperSymbol)
+            
             if (urlPair) {
               setSelectedPair(urlPair.symbol)
               setCurrentPrice(parseFloat(urlPair.price))
-              console.log('✅ URL\'den coin seçildi:', urlPair.symbol)
+              console.log('✅ Coin seçildi:', urlPair.symbol)
+              
+              // Coin search input'unu güncelle
+              const coinName = upperSymbol.replace('USDT', '')
+              setCoinSearch(coinName)
+              console.log('✅ Search güncellendi:', coinName)
+              
+              // İşlem türünü seç
+              const orderTypeValue = type.toLowerCase() === 'short' ? 'sell' : 'buy'
+              setOrderType(orderTypeValue)
+              console.log('✅ Order type:', orderTypeValue)
+              
+              // Limit moduna geç ve giriş fiyatını ayarla
+              setOrderMode('limit')
+              setLimitPrice(entry)
+              console.log('✅ Limit mode, entry:', entry)
+              
+              // Kaldıracı ayarla
+              const leverageValue = parseInt(leverage || '10')
+              setLeverage(leverageValue)
+              console.log('✅ Leverage:', leverageValue)
+              
+              // TP/SL bilgilerini sakla
+              if (tp || sl) {
+                if (tp) sessionStorage.setItem('signalTP', tp)
+                if (sl) sessionStorage.setItem('signalSL', sl)
+                console.log('✅ TP/SL kaydedildi:', { tp, sl })
+              }
+              
+              // URL'yi temizle
+              setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname)
+                console.log('🧹 URL temizlendi')
+              }, 2000)
+              
+              console.log('✅ Sinyal başarıyla uygulandı!')
             } else {
-              // URL'deki coin bulunamazsa BTC seç
+              console.log('❌ Coin bulunamadı:', upperSymbol)
+              // Coin bulunamazsa BTC seç
               const btcPair = pairs.find((p: TradingPair) => p.symbol === 'BTCUSDT') || pairs[0]
               setSelectedPair(btcPair.symbol)
               setCurrentPrice(parseFloat(btcPair.price))
