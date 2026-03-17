@@ -927,12 +927,8 @@ export default function CompactTradingSimulator() {
         await document.fonts.ready
         
         const canvas = await html2canvas(shareCard, {
-          background: '#1a1d24',
-          scale: 2,
           logging: false,
-          useCORS: true,
-          allowTaint: true,
-          foreignObjectRendering: false
+          useCORS: true
         })
 
         canvas.toBlob((blob) => {
