@@ -363,12 +363,12 @@ export default function CompactTradingSimulator() {
       })
 
       // TP/SL kontrolü - Tetiklenen pozisyonları kapat
-      const tradesToClose: { id: string, reason: 'take_profit' | 'stop_loss' }[] = []
+      const tradesToClose: { id: string, reason: 'take_profit' | 'stop_loss' | 'liquidated' }[] = []
       
       updatedTrades.forEach(trade => {
         if (trade.symbol.toLowerCase() === symbol.toLowerCase()) {
           let shouldClose = false
-          let closeReason: 'take_profit' | 'stop_loss' | null = null
+          let closeReason: 'take_profit' | 'stop_loss' | 'liquidated' | null = null
           
           // Take Profit kontrolü
           if (trade.takeProfit) {
