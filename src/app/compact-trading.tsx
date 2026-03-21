@@ -322,8 +322,8 @@ export default function CompactTradingSimulator() {
     const fetchTradingPairs = async () => {
       try {
         console.log('🔄 Binance Futures\'dan coin listesi çekiliyor...')
-        // Next.js API route üzerinden çek (operatör engelini aş)
-        const response = await fetch('/api/binance/ticker')
+        // FUTURES API endpoint'i kullan
+        const response = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr')
         const data = await response.json()
         const pairs = data
           .filter((item: BinanceTickerItem) => item.symbol.endsWith('USDT'))
@@ -659,8 +659,8 @@ export default function CompactTradingSimulator() {
       if (allCoins.length === 0) return
 
       try {
-        // Tüm coinlerin fiyatlarını tek seferde çek (proxy üzerinden)
-        const response = await fetch(`/api/binance/price?symbols=["${allCoins.join('","')}"]`)
+        // Tüm coinlerin fiyatlarını tek seferde çek
+        const response = await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbols=["${allCoins.join('","')}"]`)
         const data = await response.json()
         
         // Her coin için fiyatı güncelle
@@ -2162,7 +2162,7 @@ export default function CompactTradingSimulator() {
                                   // O coin'in güncel fiyatını çek ve trade'i güncelle
                                   const updateTradePrice = async () => {
                                     try {
-                                      const response = await fetch(`/api/binance/price?symbol=${trade.symbol}`)
+                                      const response = await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${trade.symbol}`)
                                       const data = await response.json()
                                       const latestPrice = parseFloat(data.price)
                                       
