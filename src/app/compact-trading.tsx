@@ -545,85 +545,8 @@ export default function CompactTradingSimulator() {
             
             // WebSocket sadece limit emirler için kullanılacak (pozisyon güncellemesi API'den)
 
-            // Bekleyen limit emirlerini kontrol et
-            setPendingOrders(prevOrders => {
-              if (prevOrders.length === 0) return prevOrders
-              
-              // localStorage'dan güncel listeyi al (race condition önlemi)
-              const storedOrders = localStorage.getItem('pendingOrders')
-              const currentOrders = storedOrders ? JSON.parse(storedOrders) : prevOrders
-              
-              const triggeredOrders: PendingOrder[] = []
-              const remainingOrders: PendingOrder[] = []
-              
-              currentOrders.forEach((order: PendingOrder) => {
-                if (order.symbol.toLowerCase() === symbol.toLowerCase()) {
-                  let shouldTrigger = false
-                  
-                  if (order.type === 'long') {
-                    // Long için: mevcut fiyat limit fiyatına eşit veya altına düştüğünde tetikle
-                    shouldTrigger = newPrice <= order.limitPrice
-                  } else {
-                    // Short için: mevcut fiyat limit fiyatına eşit veya üstüne çıktığında tetikle
-                    shouldTrigger = newPrice >= order.limitPrice
-                  }
-                  
-                  if (shouldTrigger) {
-                    triggeredOrders.push(order)
-                  } else {
-                    remainingOrders.push(order)
-                  }
-                } else {
-                  remainingOrders.push(order)
-                }
-              })
-
-              // Tetiklenen emirleri pozisyona çevir
-              if (triggeredOrders.length > 0) {
-                console.log(`${triggeredOrders.length} limit emri tetiklendi, emirler:`, triggeredOrders.map(o => o.id))
-                
-                // HEMEN localStorage'ı güncelle (race condition önlemi)
-                localStorage.setItem('pendingOrders', JSON.stringify(remainingOrders))
-                
-                // setTimeout ile state güncellemesini bir sonraki tick'e ertele
-                setTimeout(() => {
-                  const newTrades: TradeData[] = []
-                  
-                  triggeredOrders.forEach(order => {
-                    const liquidationPrice = calculateLiquidationPrice(order.limitPrice, order.leverage, order.type)
-                    const tradeId = `trade_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-                    
-                    const newTrade: TradeData = {
-                      id: tradeId,
-                      symbol: order.symbol,
-                      type: order.type,
-                      entryPrice: order.limitPrice,
-                      leverage: order.leverage,
-                      investment: order.investment,
-                      currentPrice: newPrice,
-                      pnl: 0,
-                      roi: 0,
-                      liquidationPrice,
-                      isActive: true,
-                      startTime: new Date()
-                    }
-                    
-                    newTrades.push(newTrade)
-                  })
-
-                  // Tüm yeni trade'leri tek seferde ekle
-                  setActiveTrades(prevTrades => {
-                    const updatedTrades = [...prevTrades, ...newTrades]
-                    localStorage.setItem('activeTrades', JSON.stringify(updatedTrades))
-                    console.log(`${newTrades.length} pozisyon açıldı`)
-                    return updatedTrades
-                  })
-                }, 0)
-              }
-
-              // Her durumda remainingOrders döndür (tetiklenen emirler çıkarılmış olacak)
-              return remainingOrders
-            })
+            // Bekleyen limit emirlerini kontrol et (WebSocket için)
+            checkPendingOrders(symbol, newPrice)
           } catch (parseError) {
             console.error('WebSocket mesaj ayrıştırma hatası:', parseError)
           }
@@ -646,15 +569,18 @@ export default function CompactTradingSimulator() {
         setWsConnectionStatus('error')
       }
     }, 100)
-  }, [selectedPair])
+  }, [selectedPair, checkPendingOrders])
 
-  // Diğer coinlerin fiyatlarını periyodik olarak güncelle
+  // Tüm coinlerin fiyatlarını periyodik olarak güncelle (hem pozisyonlar hem limit emirleri için)
   useEffect(() => {
-    if (activeTrades.length === 0) return
+    // Hem activeTrades hem de pendingOrders boşsa çalışma
+    if (activeTrades.length === 0 && pendingOrders.length === 0) return
 
     const updateAllCoinPrices = async () => {
-      // Tüm açık pozisyonların coinlerini al (seçili coin dahil)
-      const allCoins = [...new Set(activeTrades.map(trade => trade.symbol))]
+      // Hem açık pozisyonlar hem de bekleyen emirlerdeki coinleri al
+      const activeCoins = activeTrades.map(trade => trade.symbol)
+      const pendingCoins = pendingOrders.map(order => order.symbol)
+      const allCoins = [...new Set([...activeCoins, ...pendingCoins])]
 
       if (allCoins.length === 0) return
 
@@ -671,7 +597,10 @@ export default function CompactTradingSimulator() {
             if (ticker.symbol === selectedPair) {
               setCurrentPrice(newPrice)
             }
+            // Pozisyonları güncelle
             updateTradePrice(ticker.symbol, newPrice)
+            // Limit emirlerini kontrol et
+            checkPendingOrders(ticker.symbol, newPrice)
           }
         })
       } catch (error) {
@@ -686,7 +615,7 @@ export default function CompactTradingSimulator() {
     const interval = setInterval(updateAllCoinPrices, 5000)
     
     return () => clearInterval(interval)
-  }, [activeTrades, selectedPair, updateTradePrice])
+  }, [activeTrades, pendingOrders, selectedPair, updateTradePrice, checkPendingOrders])
 
   // Coin seçimi değiştiğinde search input'unu güncelle
   useEffect(() => {
@@ -756,6 +685,88 @@ export default function CompactTradingSimulator() {
       return entryPrice + priceChange
     }
   }
+
+  // Limit emirlerini kontrol et ve tetiklenenleri pozisyona çevir
+  const checkPendingOrders = useCallback((symbol: string, newPrice: number) => {
+    setPendingOrders(prevOrders => {
+      if (prevOrders.length === 0) return prevOrders
+      
+      // localStorage'dan güncel listeyi al (race condition önlemi)
+      const storedOrders = localStorage.getItem('pendingOrders')
+      const currentOrders = storedOrders ? JSON.parse(storedOrders) : prevOrders
+      
+      const triggeredOrders: PendingOrder[] = []
+      const remainingOrders: PendingOrder[] = []
+      
+      currentOrders.forEach((order: PendingOrder) => {
+        if (order.symbol.toLowerCase() === symbol.toLowerCase()) {
+          let shouldTrigger = false
+          
+          if (order.type === 'long') {
+            // Long için: mevcut fiyat limit fiyatına eşit veya altına düştüğünde tetikle
+            shouldTrigger = newPrice <= order.limitPrice
+          } else {
+            // Short için: mevcut fiyat limit fiyatına eşit veya üstüne çıktığında tetikle
+            shouldTrigger = newPrice >= order.limitPrice
+          }
+          
+          if (shouldTrigger) {
+            triggeredOrders.push(order)
+          } else {
+            remainingOrders.push(order)
+          }
+        } else {
+          remainingOrders.push(order)
+        }
+      })
+
+      // Tetiklenen emirleri pozisyona çevir
+      if (triggeredOrders.length > 0) {
+        console.log(`${triggeredOrders.length} limit emri tetiklendi, emirler:`, triggeredOrders.map(o => o.id))
+        
+        // HEMEN localStorage'ı güncelle (race condition önlemi)
+        localStorage.setItem('pendingOrders', JSON.stringify(remainingOrders))
+        
+        // setTimeout ile state güncellemesini bir sonraki tick'e ertele
+        setTimeout(() => {
+          const newTrades: TradeData[] = []
+          
+          triggeredOrders.forEach(order => {
+            const liquidationPrice = calculateLiquidationPrice(order.limitPrice, order.leverage, order.type)
+            const tradeId = `trade_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            
+            const newTrade: TradeData = {
+              id: tradeId,
+              symbol: order.symbol,
+              type: order.type,
+              entryPrice: order.limitPrice,
+              leverage: order.leverage,
+              investment: order.investment,
+              currentPrice: newPrice,
+              pnl: 0,
+              roi: 0,
+              liquidationPrice,
+              isActive: true,
+              startTime: new Date()
+            }
+            
+            newTrades.push(newTrade)
+          })
+
+          // Tüm yeni trade'leri tek seferde ekle
+          setActiveTrades(prevTrades => {
+            const updatedTrades = [...prevTrades, ...newTrades]
+            localStorage.setItem('activeTrades', JSON.stringify(updatedTrades))
+            console.log(`${newTrades.length} pozisyon açıldı`)
+            return updatedTrades
+          })
+        }, 0)
+      }
+
+      // Her durumda remainingOrders döndür (tetiklenen emirler çıkarılmış olacak)
+      return remainingOrders
+    })
+  }, [])
 
   const startTrade = () => {
     // Coin seçilmiş mi kontrol et
