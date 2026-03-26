@@ -94,6 +94,9 @@ export default function CompactTradingSimulator() {
     trade: TradeData | null
   }>({ show: false, trade: null })
   
+  // Her coin'in güncel fiyatını tut (limit emirleri için)
+  const [coinPrices, setCoinPrices] = useState<Record<string, number>>({})
+  
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false)
   const [onboardingStep, setOnboardingStep] = useState<number>(0)
@@ -497,6 +500,12 @@ export default function CompactTradingSimulator() {
 
   // Limit emirlerini kontrol et ve tetiklenenleri pozisyona çevir
   const checkPendingOrders = useCallback((symbol: string, newPrice: number) => {
+    // Geçersiz fiyat kontrolü - 0 veya NaN ise işlem yapma
+    if (!newPrice || newPrice <= 0 || isNaN(newPrice)) {
+      console.log(`⚠️ Geçersiz fiyat, limit emri kontrolü atlanıyor: ${symbol}, Fiyat: ${newPrice}`)
+      return
+    }
+    
     setPendingOrders(prevOrders => {
       if (prevOrders.length === 0) return prevOrders
       
@@ -514,9 +523,11 @@ export default function CompactTradingSimulator() {
           if (order.type === 'long') {
             // Long için: mevcut fiyat limit fiyatına eşit veya altına düştüğünde tetikle
             shouldTrigger = newPrice <= order.limitPrice
+            console.log(`🔍 Long limit kontrolü: ${symbol}, Limit: ${order.limitPrice}, Mevcut: ${newPrice}, Tetiklenecek mi: ${shouldTrigger}`)
           } else {
             // Short için: mevcut fiyat limit fiyatına eşit veya üstüne çıktığında tetikle
             shouldTrigger = newPrice >= order.limitPrice
+            console.log(`🔍 Short limit kontrolü: ${symbol}, Limit: ${order.limitPrice}, Mevcut: ${newPrice}, Tetiklenecek mi: ${shouldTrigger}`)
           }
           
           if (shouldTrigger) {
@@ -612,6 +623,9 @@ export default function CompactTradingSimulator() {
             
             if (isNaN(newPrice)) return
             
+            // Coin fiyatını state'e kaydet (limit emirleri için anlık güncelleme)
+            setCoinPrices(prev => ({ ...prev, [symbol]: newPrice }))
+            
             // Sadece seçili coin için currentPrice'ı güncelle (UI için)
             if (symbol.toLowerCase() === selectedPair.toLowerCase()) {
               setCurrentPrice(prevPrice => {
@@ -685,6 +699,9 @@ export default function CompactTradingSimulator() {
         data.forEach((ticker: { symbol: string, price: string }) => {
           const newPrice = parseFloat(ticker.price)
           if (!isNaN(newPrice)) {
+            // Coin fiyatlarını state'e kaydet
+            setCoinPrices(prev => ({ ...prev, [ticker.symbol]: newPrice }))
+            
             // Seçili coin için currentPrice'ı da güncelle
             if (ticker.symbol === selectedPair) {
               setCurrentPrice(newPrice)
@@ -700,13 +717,16 @@ export default function CompactTradingSimulator() {
       }
     }
 
-    // İlk güncelleme
-    updateAllCoinPrices()
+    // İlk güncellemeyi 1 saniye sonra yap (sayfa yüklendiğinde fiyatlar görünsün, ama yeni emir hemen tetiklenmesin)
+    const initialTimeout = setTimeout(updateAllCoinPrices, 1000)
     
     // Her 5 saniyede bir güncelle
     const interval = setInterval(updateAllCoinPrices, 5000)
     
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(initialTimeout)
+      clearInterval(interval)
+    }
   }, [activeTrades, pendingOrders, selectedPair, updateTradePrice, checkPendingOrders])
 
   // Coin seçimi değiştiğinde search input'unu güncelle
@@ -717,10 +737,8 @@ export default function CompactTradingSimulator() {
         setCoinSearch(selectedPairData.baseAsset)
         const newPrice = parseFloat(selectedPairData.price)
         setCurrentPrice(newPrice)
-        // Limit price'ı current price ile senkronize et
-        if (!limitPrice || limitPrice === '0') {
-          setLimitPrice(newPrice.toFixed(4))
-        }
+        // Coin değiştiğinde limit price'ı her zaman yeni coin'in fiyatına güncelle
+        setLimitPrice(newPrice.toFixed(4))
       }
       
       connectWebSocket(selectedPair)
@@ -2290,7 +2308,7 @@ export default function CompactTradingSimulator() {
                               </div>
                               <div>
                                 <div className="text-xs text-gray-400">Mevcut Fiyat</div>
-                                <div className="text-xs font-mono">{formatPrice(currentPrice)}</div>
+                                <div className="text-xs font-mono">{formatPrice(coinPrices[order.symbol] || 0)}</div>
                               </div>
                             </div>
 
@@ -2299,13 +2317,13 @@ export default function CompactTradingSimulator() {
                               <div className="text-xs text-gray-400">Fiyat Farkı</div>
                               <div className={`text-xs font-medium ${
                                 order.type === 'long' 
-                                  ? (order.limitPrice < currentPrice ? 'text-[#0ECB81]' : 'text-[#F6465D]')
-                                  : (order.limitPrice > currentPrice ? 'text-[#0ECB81]' : 'text-[#F6465D]')
+                                  ? (order.limitPrice < (coinPrices[order.symbol] || 0) ? 'text-[#0ECB81]' : 'text-[#F6465D]')
+                                  : (order.limitPrice > (coinPrices[order.symbol] || 0) ? 'text-[#0ECB81]' : 'text-[#F6465D]')
                               }`}>
-                                {(((order.limitPrice - currentPrice) / currentPrice) * 100).toFixed(2)}%
+                                {coinPrices[order.symbol] ? (((order.limitPrice - coinPrices[order.symbol]) / coinPrices[order.symbol]) * 100).toFixed(2) : '0.00'}%
                                 {order.type === 'long' 
-                                  ? (order.limitPrice < currentPrice ? ' (Tetiklenmeye hazır)' : ' (Fiyat düşmeli)')
-                                  : (order.limitPrice > currentPrice ? ' (Tetiklenmeye hazır)' : ' (Fiyat yükselmeli)')
+                                  ? (order.limitPrice < (coinPrices[order.symbol] || 0) ? ' (Tetiklenmeye hazır)' : ' (Fiyat düşmeli)')
+                                  : (order.limitPrice > (coinPrices[order.symbol] || 0) ? ' (Tetiklenmeye hazır)' : ' (Fiyat yükselmeli)')
                                 }
                               </div>
                             </div>
